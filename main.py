@@ -6,29 +6,36 @@ import os
 
 app = FastAPI()
 
+# Global variables to hold model and index (initialized on startup)
+model = None
+index = None
+
 # Load environment variables
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-PINECONE_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT")  # Optional
 INDEX_NAME = "afi-index"
 
 if not PINECONE_API_KEY:
     raise ValueError("PINECONE_API_KEY environment variable must be set.")
 
-# Initialize Pinecone client and index
-try:
-    pc = Pinecone(api_key=PINECONE_API_KEY)
-    index = pc.Index(INDEX_NAME)
-    print(f"✅ Connected to Pinecone index: {INDEX_NAME}")
-except Exception as e:
-    raise RuntimeError(f"❌ Failed to connect to Pinecone index: {e}")
+# --- FastAPI Startup Event ---
+@app.on_event("startup")
+async def startup_event():
+    global model, index
+    try:
+        pc = Pinecone(api_key=PINECONE_API_KEY)
+        index = pc.Index(INDEX_NAME)
+        print(f"✅ Connected to Pinecone index: {INDEX_NAME}")
+    except Exception as e:
+        print(f"❌ Pinecone initialization failed: {e}")
+        raise RuntimeError(f"❌ Failed to connect to Pinecone index: {e}")
 
-# Load embedding model
-try:
-    model_id = 'sentence-transformers/all-MiniLM-L6-v2'
-    model = SentenceTransformer(model_id)
-    print(f"✅ Loaded embedding model: {model_id}")
-except Exception as e:
-    raise RuntimeError(f"❌ Failed to load model: {e}")
+    try:
+        model_id = 'sentence-transformers/all-MiniLM-L6-v2'
+        model = SentenceTransformer(model_id)
+        print(f"✅ Loaded model: {model_id}")
+    except Exception as e:
+        print(f"❌ Model loading failed: {e}")
+        raise RuntimeError(f"❌ Failed to load model: {e}")
 
 # Health check
 @app.get("/ping")
