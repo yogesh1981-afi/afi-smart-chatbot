@@ -1,4 +1,4 @@
-# main.py (corrected for Render)
+# main.py (corrected for Render with /ping route)
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -6,6 +6,16 @@ from pinecone import Pinecone
 import os
 
 app = FastAPI()
+
+# Health check route
+@app.get("/ping")
+def ping():
+    return {"message": "Embedding API is live"}
+
+# Root route
+@app.get("/")
+def read_root():
+    return {"message": "AFI Smart Chat Assistant Embedding API is running 🚀"}
 
 # Initialize Pinecone using environment variables
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
@@ -24,15 +34,13 @@ class EmbedRequest(BaseModel):
 @app.post("/embed")
 async def embed_text(request: EmbedRequest):
     try:
-        # Get embedding dimension from the index description
         index_description = pc.describe_index(INDEX_NAME)
-        dimension = index_description.dimension  # Access dimension directly
+        dimension = index_description.dimension
 
-        # Assuming you have an embedding model deployed on Pinecone
-        # Replace 'your-embedding-model-id' with the actual ID of your model
+        # Replace with your real model ID in Pinecone if applicable
         embed_response = index.embed(
             vectors=[request.text],
-            model="your-embedding-model-id"  # Specify the embedding model
+            model="your-embedding-model-id"
         )
 
         if embed_response and embed_response.vectors:
@@ -42,7 +50,3 @@ async def embed_text(request: EmbedRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/")
-def read_root():
-    return {"message": "AFI Smart Chat Assistant Embedding API is running 🚀"}
