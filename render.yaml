@@ -5,4 +5,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
     plan: free
-    envVars: []
+    envVars:
+      - key: PINECONE_API_KEY
+        value: "your-pinecone-api-key"  # Replace with your actual Pinecone API key
+      - key: PINECONE_ENVIRONMENT
+        value: "us-east-1-aws"  # Replace with your Pinecone environment (or your specific environment)
