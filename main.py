@@ -54,7 +54,19 @@ class EmbedRequest(BaseModel):
 class EmbedResponse(BaseModel):
     embedding: list[float]
 
-# Embed endpoint
+class QueryRequest(BaseModel):
+    text: str
+    top_k: int = 5
+
+class QueryMatch(BaseModel):
+    id: str
+    score: float
+    text: str = None  # Only if metadata["text"] is stored
+
+class QueryResponse(BaseModel):
+    matches: list[QueryMatch]
+
+# /embed endpoint
 @app.post("/embed", response_model=EmbedResponse)
 async def embed_text(request: EmbedRequest):
     if not request.text:
@@ -64,3 +76,28 @@ async def embed_text(request: EmbedRequest):
         return {"embedding": embedding}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {e}")
+
+# /query endpoint
+@app.post("/query", response_model=QueryResponse)
+async def query_index(request: QueryRequest):
+    if not request.text:
+        raise HTTPException(status_code=400, detail="Query text cannot be empty.")
+    try:
+        query_vector = model.encode(request.text).tolist()
+        results = index.query(
+            vector=query_vector,
+            top_k=request.top_k,
+            include_metadata=True
+        )
+
+        matches = []
+        for match in results.get("matches", []):
+            matches.append(QueryMatch(
+                id=match["id"],
+                score=match["score"],
+                text=match.get("metadata", {}).get("text")
+            ))
+
+        return {"matches": matches}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to query index: {e}")
