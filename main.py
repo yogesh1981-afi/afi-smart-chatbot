@@ -3,15 +3,19 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pinecone import Pinecone
+import os
 
 app = FastAPI()
 
-# Initialize Pinecone
-PINECONE_API_KEY = "pcsk_3gacFU_LTFpgKGM7z9jaYVbYSbDYkPCJRJYibAicmzZ4uWQ5Z3Uistcs3G9v1kdz"
-PINECONE_ENVIRONMENT = "us-east-1-aws"
+# Initialize Pinecone using environment variables
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
+PINECONE_ENVIRONMENT = os.environ.get("PINECONE_ENVIRONMENT")
 INDEX_NAME = "afi-index"
 
-pc = Pinecone(api_key=PINECONE_API_KEY)
+if not PINECONE_API_KEY or not PINECONE_ENVIRONMENT:
+    raise ValueError("Pinecone API Key and Environment must be set as environment variables.")
+
+pc = Pinecone(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
 index = pc.Index(INDEX_NAME)
 
 class EmbedRequest(BaseModel):
@@ -20,18 +24,22 @@ class EmbedRequest(BaseModel):
 @app.post("/embed")
 async def embed_text(request: EmbedRequest):
     try:
-        # Use Pinecone's serverless embedding
-        embed_response = pc.describe_index(INDEX_NAME)
-        dimension = embed_response['dimension']
+        # Get embedding dimension from the index description
+        index_description = pc.describe_index(INDEX_NAME)
+        dimension = index_description.dimension  # Access dimension directly
 
-        vector_response = pc.describe_index(INDEX_NAME)['embed']
+        # Assuming you have an embedding model deployed on Pinecone
+        # Replace 'your-embedding-model-id' with the actual ID of your model
+        embed_response = index.embed(
+            vectors=[request.text],
+            model="your-embedding-model-id"  # Specify the embedding model
+        )
 
-        # Use the Pinecone native embedding endpoint
-        embed_result = pc._sync._api_client._embedding(index_name=INDEX_NAME, input=request.text)
+        if embed_response and embed_response.vectors:
+            return {"embedding": embed_response.vectors[0].values}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to get embedding from Pinecone.")
 
-        return {
-            "embedding": embed_result["vectors"][0]["values"]
-        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
