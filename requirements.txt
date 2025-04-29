@@ -3,3 +3,5 @@ uvicorn
 pinecone
 transformers
 torch
+sentence-transformers
+pydantic
